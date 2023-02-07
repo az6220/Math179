@@ -59,10 +59,12 @@ def linreg(X, y, reg=0.0):
 			1) use np.eye to create identity matrix
 			2) use np.linalg.solve to solve for W_opt
 	"""
-	# TODO: solve for W_opt
 	"*** YOUR CODE HERE ***"
-	
-
+	# ridge regression equation from equation 7.33 in book 
+	# lambda = parameter for regularization
+	I = np.eye(X.shape[1]) # dimension (n+1) x (n+1)
+	I[0,0] = 0.0 # why do we do this
+	W_opt = np.linalg.solve(reg*I + np.matmul(X.T,X), np.matmul(X.T,y))
 	"*** END YOUR CODE HERE ***"
 	return W_opt
 
@@ -89,9 +91,11 @@ def find_RMSE(W, X, y):
 
 		This function calculates and returns the root mean-squared error, RMSE
 	"""
-	# TODO: Solve for the root mean-squared error, RMSE
+	# Solve for the root mean-squared error, RMSE
 	"*** YOUR CODE HERE ***"
-	
+	predicted = predict(W, X)
+	error = np.square((predicted - y)) 
+	RMSE = np.sqrt(np.sum(error)/ X.shape[0]) 
 	"*** END YOUR CODE HERE ***"
 	return RMSE
 
@@ -114,13 +118,17 @@ def RMSE_vs_lambda(X_train, y_train, X_val, y_val):
 			   parameters generated above
 			3) Generate, RMSE_list, a list of RMSE according to reg_list
 	"""
-	# TODO: Generate a list of RMSE, RESE_list
+	# Generate a list of RMSE, RESE_list
 	RMSE_list = []
 	reg_list = []
 	W_list = []
 	"*** YOUR CODE HERE ***"
-
-
+	reg_list = np.random.uniform(0.0, 150.0, 150)
+	reg_list.sort()
+	for index,reg in np.ndenumerate(reg_list):
+		w = linreg(X_train, y_train, reg)
+		W_list.append(w)
+		RMSE_list.append(find_RMSE(w, X_val, y_val))
 	"*** END YOUR CODE HERE ***"
 
 	# Set up plot style
@@ -136,13 +144,12 @@ def RMSE_vs_lambda(X_train, y_train, X_val, y_val):
 	plt.close()
 	print('==> Plotting completed.')
 
-	# TODO: Find reg_opt, the regularization value that minimizes RMSE
+	# Find reg_opt, the regularization value that minimizes RMSE
 	"*** YOUR CODE HERE ***"
-	
-
+	index = np.argmin(RMSE_list)
+	reg_opt = reg_list[index]
 	"*** END YOUR CODE HERE ***"
 	return reg_opt
-
 
 
 def norm_vs_lambda(X_train, y_train, X_val, y_val):
@@ -161,13 +168,17 @@ def norm_vs_lambda(X_train, y_train, X_val, y_val):
 			2) Then generate norm_list, a list of norm by calculating the
 			   norm of each weight
 	"""
-	# TODO: Generate a list of norm, norm_list
+	# Generate a list of norm, norm_list
 	reg_list = []
 	W_list = []
 	norm_list = []
 	"*** YOUR CODE HERE ***"
-	
-
+	reg_list = np.random.uniform(0.0, 150.0, 150)
+	reg_list.sort()
+	for index,reg in np.ndenumerate(reg_list):
+		w = linreg(X_train, y_train, reg)
+		W_list.append(w)
+		norm_list.append(np.linalg.norm(w,2))
 	"*** END YOUR CODE HERE ***"
 
 	# Set up plot style
@@ -202,10 +213,14 @@ def linreg_no_bias(X, y, reg=0.0):
 	t_start = time.time()
 
 	# Find the numerical solution in part d
-	# TODO: Solve for W_opt, and b_opt
+	# Solve for W_opt, and b_opt
 	"*** YOUR CODE HERE ***"
-	
-
+	# closed solution taken from part (d) of pdf answers 
+	# consulted answers for this solution
+	n = X.shape[0]
+	Aggregate = X.T @ (np.eye(n) - np.ones(n) / n)
+	W_opt = np.linalg.solve(Aggregate @ X + reg * np.eye(Aggregate.shape[0]), Aggregate @ y)
+	b_opt = sum((y - X @ W_opt)) / n # sum instead of multiplying by the ones vector
 	"*** END YOUR CODE HERE ***"
 
 	# Benchmark report
@@ -243,19 +258,21 @@ def grad_descent(X_train, y_train, X_val, y_val, reg=0.0, lr_W=2.5e-12, \
 	m_train, n = X_train.shape
 	m_val = X_val.shape[0]
 
-	# TODO: initialize the weights and bias and their corresponding gradients
+	# initialize the weights and bias and their corresponding gradients
 
 	# Please use the variable names: W (weights), W_grad (gradients of W),
 	# b (bias), b_grad (gradients of b)
 	"*** YOUR CODE HERE ***"
-	
-
+	W = np.zeros((n,1))
+	W_grad = np.ones_like(W)
+	b = 0
+	b_grad = 1
 	"*** END YOUR CODE HERE ***"
 
 
 	print('==> Running gradient descent...')
 
-	# TODO: run gradient descent algorithm
+	# run gradient descent algorithm
 
 	# HINT: Run the gradient descent algorithm followed steps below
 	#	1) Calculate the training RMSE and validation RMSE at each iteration,
@@ -276,8 +293,24 @@ def grad_descent(X_train, y_train, X_val, y_val, reg=0.0, lr_W=2.5e-12, \
 		and iter_num < max_iter:
 
 		"*** YOUR CODE HERE ***"
+		# step 1 : calculate training and validation RMSE
+		trained_value = X_train @ W
+		trained_err = np.square((trained_value.reshape(-1,1) + b - y_train))
+		train_rmse = np.sqrt(np.sum(trained_err) / m_train)
+		obj_train.append(train_rmse)
 		
-
+		val_value = X_val @ W
+		val_error = np.square(val_value.reshape(-1,1) + b - y_val)
+		val_rmse = np.sqrt(np.sum(val_error) / m_val)
+		obj_val.append(val_rmse)
+		# step 2: calculate gradient for W and b
+		# note: used solutions for code for step 2
+		W_grad = ((X_train.T @ X_train + reg * np.eye(n)) @ W + X_train.T @ (b - y_train)) / m_train
+		b_grad = (sum(X_train @ W) - sum(y_train) + b * m_train) / m_train
+		# step 3: upgrade W and b 
+		W -= lr_W * W_grad
+		b -= lr_b * b_grad
+		# step 4: keep updating
 		"*** END YOUR CODE HERE ***"
 
 		# print statements for debugging
@@ -356,14 +389,15 @@ if __name__ == '__main__':
 	y_test = np.array(np.log(df[df.type == 'test'].shares)).reshape((-1, 1))
 
 
-	# TODO: Stack a column of ones to the feature data, X_train, X_val and X_test
+	# Stack a column of ones to the feature data, X_train, X_val and X_test
 
 	# HINT:
 	# 	1) Use np.ones / np.ones_like to create a column of ones
 	#	2) Use np.hstack to stack the column to the matrix
 	"*** YOUR CODE HERE ***"
-	
-
+	X_train = np.hstack((np.ones_like(y_train),X_train))
+	X_val = np.hstack((np.ones_like(y_val), X_val))
+	X_test = np.hstack((np.ones_like(y_test), X_test))
 	"*** END YOUR CODE HERE ***"
 
 	# Convert data to matrix
